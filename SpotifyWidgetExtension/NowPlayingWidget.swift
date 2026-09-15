@@ -1,0 +1,123 @@
+import SwiftUI
+import WidgetKit
+
+@main
+struct SpotifyWidgetBundle: WidgetBundle {
+    var body: some Widget {
+        NowPlayingWidget()
+        NowPlayingMinimalWidget()
+    }
+}
+
+struct NowPlayingWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: AppGroup.widgetKind, provider: Provider()) { entry in
+            NowPlayingView(entry: entry)
+        }
+        .configurationDisplayName("Now Playing")
+        .description("What's playing in Spotify, with playback controls.")
+        .supportedFamilies([.systemSmall, .systemMedium])
+        // The cover is drawn edge to edge as content; views add the margins back themselves.
+        .contentMarginsDisabled()
+    }
+}
+
+/// The medium layout with a bare progress bar, like the small widget: no elapsed or total time.
+struct NowPlayingMinimalWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: AppGroup.minimalWidgetKind, provider: Provider()) { entry in
+            NowPlayingView(entry: entry, showTimes: false)
+        }
+        .configurationDisplayName("Now Playing (Minimal)")
+        .description("What's playing in Spotify, with playback controls and a progress bar without times.")
+        .supportedFamilies([.systemMedium])
+        .contentMarginsDisabled()
+    }
+}
+
+struct NowPlayingEntry: TimelineEntry {
+    let date: Date
+    let snapshot: NowPlaying
+    /// Cover art with the scrim baked in, sized to the widget. Nil when there's no artwork.
+    let backdrop: NSImage?
+}
+
+struct Provider: TimelineProvider {
+    func placeholder(in context: Context) -> NowPlayingEntry {
+        NowPlayingEntry(date: .now, snapshot: .placeholder, backdrop: nil)
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (NowPlayingEntry) -> Void) {
+        let entry = currentEntry(size: context.displaySize)
+        completion(context.isPreview && !entry.snapshot.hasTrack ? placeholder(in: context) : entry)
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<NowPlayingEntry>) -> Void) {
+        let entry = currentEntry(size: context.displaySize)
+        let s = entry.snapshot
+        let live = s.isPlaying && s.duration > 0 && s.endDate > .now
+        var entries = [entry]
+
+        // If the host app goes quiet, don't leave a progress bar running past the end of the track.
+        if live {
+            var ended = s
+            ended.status = .paused
+            ended.position = s.duration
+            ended.capturedAt = s.endDate
+            entries.append(NowPlayingEntry(date: s.endDate, snapshot: ended, backdrop: entry.backdrop))
+        }
+
+        // The host app reloads the timeline whenever playback changes.
+        completion(Timeline(entries: entries, policy: .never))
+    }
+
+    private func currentEntry(size: CGSize) -> NowPlayingEntry {
+        let snapshot = SharedStore.load()
+        let artwork = snapshot.artworkFile.flatMap { NSImage(contentsOf: SharedStore.fileURL($0)) }
+        let backdrop = artwork.flatMap { Backdrop.render($0, size: size) }
+        return NowPlayingEntry(date: .now, snapshot: snapshot, backdrop: backdrop)
+    }
+}
+
+/// In the glass style (another app focused) macOS drops the container background and flattens
+/// non-image content to a tint, so a SwiftUI gradient over the cover would turn into a white wash.
+/// Baking the scrim into a single image keeps the full-bleed look identical in both states.
+enum Backdrop {
+    static func render(_ artwork: NSImage, size: CGSize, scale: CGFloat = 2) -> NSImage? {
+        guard size.width > 0, size.height > 0,
+              let cover = artwork.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let ctx = CGContext(
+                  data: nil,
+                  width: Int(size.width * scale),
+                  height: Int(size.height * scale),
+                  bitsPerComponent: 8,
+                  bytesPerRow: 0,
+                  space: space,
+                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              )
+        else { return nil }
+
+        let w = CGFloat(ctx.width), h = CGFloat(ctx.height)
+        ctx.setFillColor(CGColor(gray: 0.12, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
+
+        // Aspect-fill, centered.
+        let fill = max(w / CGFloat(cover.width), h / CGFloat(cover.height))
+        let dw = CGFloat(cover.width) * fill, dh = CGFloat(cover.height) * fill
+        ctx.interpolationQuality = .high
+        ctx.draw(cover, in: CGRect(x: (w - dw) / 2, y: (h - dh) / 2, width: dw, height: dh))
+
+        // Scrim darkens the bottom where the title and controls sit. CG's origin is bottom-left.
+        let black = { (a: CGFloat) in CGColor(gray: 0, alpha: a) }
+        if let scrim = CGGradient(
+            colorsSpace: space,
+            colors: [black(0.8), black(0.15), black(0.05)] as CFArray,
+            locations: [0, 0.65, 1]
+        ) {
+            ctx.drawLinearGradient(scrim, start: .zero, end: CGPoint(x: 0, y: h), options: [])
+        }
+
+        return ctx.makeImage().map { NSImage(cgImage: $0, size: size) }
+    }
+}
