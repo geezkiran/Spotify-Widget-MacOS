@@ -39,6 +39,7 @@ struct SmallView: View {
     var body: some View {
         let s = entry.snapshot
         VStack(alignment: .leading, spacing: 2) {
+            LikeButton(liked: s.liked)
             Spacer(minLength: 4)
             HStack(alignment: .center, spacing: 6) {
                 SlidingText(text: s.title, previous: s.previousTitle, changes: s.titleChanges, direction: s.skipDirection, fadesOverflow: true, marquee: entry.marquee)
@@ -59,10 +60,7 @@ struct MediumView: View {
     var body: some View {
         let s = entry.snapshot
         return VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Spacer()
-                LikeButton(liked: s.liked)
-            }
+            LikeButton(liked: s.liked)
             Spacer(minLength: 0)
             HStack(alignment: .bottom, spacing: 12) {
                 VStack(alignment: .leading, spacing: 0) {
@@ -170,14 +168,23 @@ struct LikeButton: View {
     var body: some View {
         if let liked {
             Button(intent: ToggleLikeIntent()) {
-                LikeIconShape(liked: liked)
-                    .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-                    .frame(width: 18, height: 18)
-                .frame(width: 22, height: 22)
+                // Sized by a hidden circle symbol in the play/pause button's font, so the two icons match.
+                // The shape's circle fills 20/24 of its frame, hence the slight overhang.
+                Image(systemName: "circle")
+                    .font(.title2)
+                    .hidden()
+                    .overlay {
+                        LikeIconShape(liked: liked)
+                            .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                            .padding(-1)
+                    }
+                    .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .widgetAccentable()
+            // Tucked toward the top-left corner; an offset leaves the rest of the layout where it is.
+            .offset(x: -4, y: -4)
         }
     }
 }
