@@ -34,21 +34,18 @@ struct NowPlayingView: View {
 struct SmallView: View {
     let entry: NowPlayingEntry
 
+    static let titleSize: CGFloat = 15
+
     var body: some View {
         let s = entry.snapshot
         VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .center, spacing: 10) {
-                ControlsRow(isPlaying: s.isPlaying, compact: true)
-                Spacer()
-                LikeButton(liked: s.liked)
-            }
             Spacer(minLength: 4)
-            SlidingText(text: s.title, previous: s.previousTitle, changes: s.titleChanges, direction: s.skipDirection)
-                .font(.system(size: 15, weight: .medium))
-                .padding(.bottom, -1)
-            SlidingText(text: s.artist, previous: s.previousArtist, changes: s.artistChanges, direction: s.skipDirection, delay: 0.05)
-                .font(.caption)
-                .opacity(0.75)
+            HStack(alignment: .center, spacing: 6) {
+                SlidingText(text: s.title, previous: s.previousTitle, changes: s.titleChanges, direction: s.skipDirection, fadesOverflow: true, marquee: entry.marquee)
+                    .font(.system(size: Self.titleSize, weight: .medium))
+                Spacer(minLength: 0)
+                ControlsRow(isPlaying: s.isPlaying, compact: true)
+            }
             ProgressRow(snapshot: s)
                 .padding(.top, 4)
         }
@@ -69,8 +66,8 @@ struct MediumView: View {
             Spacer(minLength: 0)
             HStack(alignment: .bottom, spacing: 12) {
                 VStack(alignment: .leading, spacing: 0) {
-                    SlidingText(text: s.title, previous: s.previousTitle, changes: s.titleChanges, direction: s.skipDirection)
-                        .font(.system(size: 15, weight: .medium))
+                    SlidingText(text: s.title, previous: s.previousTitle, changes: s.titleChanges, direction: s.skipDirection, fadesOverflow: true, marquee: entry.marquee)
+                        .font(.system(size: SmallView.titleSize, weight: .medium))
                     SlidingText(text: s.artist, previous: s.previousArtist, changes: s.artistChanges, direction: s.skipDirection, delay: 0.05)
                         .font(.subheadline)
                         .opacity(0.8)
@@ -151,8 +148,8 @@ struct ControlsRow: View {
             }
             Button(intent: PlayPauseIntent()) {
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .font(compact ? .title3 : .title2)
-                    .frame(width: 28, height: 28)
+                    .font(.title2)
+                    .frame(width: compact ? 30 : 28, height: compact ? 30 : 28)
                     .contentShape(Rectangle())
             }
             if !compact {

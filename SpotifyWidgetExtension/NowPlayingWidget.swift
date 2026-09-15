@@ -40,6 +40,8 @@ struct NowPlayingEntry: TimelineEntry {
     let snapshot: NowPlaying
     /// Cover art with the scrim baked in, sized to the widget. Nil when there's no artwork.
     let backdrop: NSImage?
+    /// How far through a scroll loop the title is, when it's too long to fit.
+    var marquee: Double = 0
 }
 
 struct Provider: TimelineProvider {
@@ -58,6 +60,12 @@ struct Provider: TimelineProvider {
         let live = s.isPlaying && s.duration > 0 && s.endDate > .now
         var entries = [entry]
 
+        if live {
+            // A rough, generous bound on the room beside the controls: margins plus the play button, or all three buttons.
+            let reserved: CGFloat = context.family == .systemSmall ? 72 : 140
+            entries += marqueeEntries(after: entry, room: context.displaySize.width - reserved)
+        }
+
         // If the host app goes quiet, don't leave a progress bar running past the end of the track.
         if live {
             var ended = s
@@ -69,6 +77,31 @@ struct Provider: TimelineProvider {
 
         // The host app reloads the timeline whenever playback changes.
         completion(Timeline(entries: entries, policy: .never))
+    }
+
+    /// Scrolls a title too long for the widget, one step per entry, resting at the start between loops.
+    /// `room` only decides whether to schedule scrolling; the view decides whether the title really overflows.
+    private func marqueeEntries(after entry: NowPlayingEntry, room: CGFloat) -> [NowPlayingEntry] {
+        let s = entry.snapshot
+        let font = NSFont.systemFont(ofSize: SmallView.titleSize, weight: .medium)
+        let textWidth = (s.title as NSString).size(withAttributes: [.font: font]).width
+        guard textWidth > room else { return [] }
+
+        let steps = Marquee.steps(forWidth: textWidth)
+        // Stop scheduling eventually on very long tracks; the next playback change reloads the timeline anyway.
+        let end = min(s.endDate, entry.date.addingTimeInterval(15 * 60))
+        var entries: [NowPlayingEntry] = []
+        var loopStart = entry.date.addingTimeInterval(Marquee.pause)
+        while loopStart < end {
+            for step in 1...steps {
+                let date = loopStart.addingTimeInterval(Double(step - 1) * Marquee.stepDuration)
+                entries.append(NowPlayingEntry(date: date, snapshot: s, backdrop: entry.backdrop, marquee: Double(step) / Double(steps)))
+            }
+            let restDate = loopStart.addingTimeInterval(Double(steps) * Marquee.stepDuration)
+            entries.append(NowPlayingEntry(date: restDate, snapshot: s, backdrop: entry.backdrop))
+            loopStart = restDate.addingTimeInterval(Marquee.pause)
+        }
+        return entries.filter { $0.date < s.endDate }
     }
 
     private func currentEntry(size: CGSize) -> NowPlayingEntry {
