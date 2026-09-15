@@ -38,9 +38,9 @@ struct SmallView: View {
         let s = entry.snapshot
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .center, spacing: 10) {
-                LikeButton(liked: s.liked)
-                Spacer()
                 ControlsRow(isPlaying: s.isPlaying, compact: true)
+                Spacer()
+                LikeButton(liked: s.liked)
             }
             Spacer(minLength: 4)
             SlidingText(text: s.title, previous: s.previousTitle, changes: s.titleChanges, direction: s.skipDirection)
@@ -63,8 +63,8 @@ struct MediumView: View {
         let s = entry.snapshot
         return VStack(alignment: .leading, spacing: 0) {
             HStack {
-                LikeButton(liked: s.liked)
                 Spacer()
+                LikeButton(liked: s.liked)
             }
             Spacer(minLength: 0)
             HStack(alignment: .bottom, spacing: 12) {
