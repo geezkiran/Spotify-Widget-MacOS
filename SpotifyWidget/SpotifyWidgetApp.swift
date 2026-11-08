@@ -19,6 +19,11 @@ struct SpotifyWidgetApp: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let controller = PlayerController()
+    private var notch: NotchPlayer?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        notch = NotchPlayer(player: controller)
+    }
 }
 
 struct MenuBarIcon: View {
@@ -32,6 +37,7 @@ struct MenuBarIcon: View {
 struct MenuContent: View {
     @EnvironmentObject private var controller: PlayerController
     @State private var openAtLogin = SMAppService.mainApp.status == .enabled
+    @AppStorage(NotchPlayer.enabledKey) private var showInNotch = true
 
     var body: some View {
         Text(statusLine)
@@ -54,6 +60,7 @@ struct MenuContent: View {
             Task { await controller.perform(command) }
         }
 
+        Toggle("Show in Notch", isOn: $showInNotch)
         Button("Reload Widget") { WidgetCenter.shared.reloadAllTimelines() }
         Toggle("Open at Login", isOn: $openAtLogin)
             .onChange(of: openAtLogin) { _, enabled in

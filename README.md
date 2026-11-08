@@ -33,6 +33,7 @@ Spotify Widget is a lightweight, menu-bar-only macOS app (no Dock icon) built wi
 **Features**
 
 - 🎧 Small and medium desktop/Notification Center widgets, backed by the current track's artwork
+- 🏝 A notch player on MacBooks with a notch: while music plays, the cover and a moving waveform appear on either side of the notch, at the notch's height (toggle with **Show in Notch** in the menu)
 - ⏯ Play/pause, skip forward, and skip back — from the widget or the menu bar
 - ❤️ Save or remove the current track from Liked Songs, via Spotify's Web API (PKCE sign-in, no password shared with the app)
 - 🪟 A clean menu bar item showing the current track, with the same controls
@@ -159,6 +160,7 @@ If a signed release build is attached to this repo's [Releases](../../releases) 
 ```
 SpotifyWidget/                 Menu bar app target
   SpotifyWidgetApp.swift         App entry point, menu bar UI
+  NotchPlayer.swift              Now-playing strip around the notch (cover + waveform)
   PlayerController.swift         Orchestrates polling, refresh, commands
   SpotifyProvider.swift          AppleScript bridge to Spotify.app
   SpotifyAccount.swift           OAuth (PKCE) + Liked Songs via Web API
