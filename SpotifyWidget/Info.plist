@@ -24,6 +24,8 @@
 	<string>public.app-category.music</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Spotify Widget listens to Spotify's audio so the notch waveform moves with the music. Nothing is recorded or saved.</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Spotify Widget reads what Spotify is playing and controls playback for the desktop widget.</string>
 </dict>
